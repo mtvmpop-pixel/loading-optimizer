@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Loading Optimizer — vođena aplikacija</title>
+<style>
+  :root{
+    --bg:#0f1720;--panel:#16212e;--panel2:#1d2b3a;--line:#2b3a4d;
+    --txt:#e8eef5;--muted:#90a2b6;--accent:#3b82f6;--accent2:#22c55e;
+    --warn:#f59e0b;--danger:#ef4444;--chip:#243446;--radius:14px;
+    --shadow:0 8px 28px rgba(0,0,0,.28);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;
+       background:radial-gradient(1200px 600px at 70% -10%,#1a2a3d 0,transparent 60%),var(--bg);
+       color:var(--txt);font-size:14px;line-height:1.5}
+  .wrap{max-width:1280px;margin:0 auto;padding:20px}
+  header.app{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:8px}
+  header.app h1{font-size:21px;margin:0;font-weight:800}
+  header.app .sub{color:var(--muted);font-size:12.5px}
+  .badge{background:var(--chip);color:var(--muted);font-size:11px;padding:4px 10px;border-radius:999px;border:1px solid var(--line)}
+  /* stepper */
+  .stepper{display:flex;gap:8px;margin:18px 0 22px;flex-wrap:wrap}
+  .step{flex:1;min-width:150px;background:var(--panel);border:1px solid var(--line);border-radius:12px;
+        padding:11px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:.15s}
+  .step .n{width:26px;height:26px;border-radius:50%;background:var(--chip);display:flex;align-items:center;
+           justify-content:center;font-weight:700;font-size:13px;flex:none}
+  .step .t{font-size:12.5px;color:var(--muted);line-height:1.2}
+  .step.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+  .step.active .n{background:var(--accent);color:#fff}
+  .step.done .n{background:var(--accent2);color:#06210f}
+  .step.done .t{color:var(--txt)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:22px;box-shadow:var(--shadow)}
+  .card h2{font-size:17px;margin:0 0 4px}
+  .card .lead{color:var(--muted);font-size:13px;margin:0 0 18px}
+  label{display:block;font-size:12px;color:var(--muted);margin:0 0 5px}
+  select,input[type=number],input[type=text]{width:100%;background:var(--panel2);border:1px solid var(--line);
+        color:var(--txt);border-radius:9px;padding:9px 10px;font-size:13px;outline:none}
+  select:focus,input:focus{border-color:var(--accent)}
+  .field{margin-bottom:14px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+  @media(max-width:700px){.grid2,.grid3{grid-template-columns:1fr}}
+  button{cursor:pointer;border:none;border-radius:9px;font-size:13px;font-weight:600;padding:10px 16px;color:#fff}
+  .btn-primary{background:var(--accent)}.btn-primary:hover{background:#2f72e0}
+  .btn-ghost{background:var(--chip);color:var(--txt);border:1px solid var(--line)}.btn-ghost:hover{border-color:var(--accent)}
+  .btn-sm{padding:6px 11px;font-size:12px}
+  .btn-danger{background:transparent;color:var(--danger);border:1px solid transparent}.btn-danger:hover{background:rgba(239,68,68,.12)}
+  .navbtns{display:flex;justify-content:space-between;margin-top:22px;gap:10px}
+  /* choice cards */
+  .choices{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  @media(max-width:760px){.choices{grid-template-columns:1fr}}
+  .choice{background:var(--panel2);border:2px solid var(--line);border-radius:12px;padding:18px;cursor:pointer;transition:.15s}
+  .choice:hover{border-color:var(--accent)}
+  .choice.sel{border-color:var(--accent);background:rgba(59,130,246,.1)}
+  .choice .ic{font-size:30px}
+  .choice h3{margin:8px 0 4px;font-size:15px}
+  .choice p{margin:0;font-size:12px;color:var(--muted)}
+  .subopts{margin-top:18px;padding:16px;border:1px dashed var(--line);border-radius:12px;background:var(--panel2)}
+  .subopts h4{margin:0 0 12px;font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+  /* items */
+  table.items{width:100%;border-collapse:collapse;margin-top:8px}
+  table.items th{font-size:10.5px;color:var(--muted);text-transform:uppercase;text-align:left;padding:5px 4px;font-weight:600}
+  table.items td{padding:3px}
+  table.items input,table.items select{padding:7px 6px;font-size:12px}
+  .hint{font-size:11.5px;color:var(--muted);margin-top:5px}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  /* vehicles */
+  .vehgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-top:10px}
+  .vehcard{background:var(--panel2);border:2px solid var(--line);border-radius:11px;padding:13px;cursor:pointer;transition:.15s}
+  .vehcard:hover{border-color:var(--accent)}
+  .vehcard.sel{border-color:var(--accent);background:rgba(59,130,246,.1)}
+  .vehcard .nm{font-weight:700;font-size:13.5px}
+  .vehcard .sp{font-size:11px;color:var(--muted);margin-top:4px}
+  .recommend{border-color:var(--accent2)!important}
+  .tagbest{display:inline-block;background:var(--accent2);color:#06210f;font-size:9.5px;font-weight:800;
+           padding:2px 7px;border-radius:999px;margin-left:6px}
+  /* results */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+  @media(max-width:720px){.kpis{grid-template-columns:repeat(2,1fr)}}
+  .kpi{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:14px}
+  .kpi .v{font-size:25px;font-weight:800;line-height:1}
+  .kpi .l{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-top:6px}
+  .bar{height:7px;border-radius:6px;background:var(--chip);margin-top:9px;overflow:hidden}
+  .bar>i{display:block;height:100%;border-radius:6px;background:var(--accent2)}
+  .bar.warn>i{background:var(--warn)}.bar.bad>i{background:var(--danger)}
+  .vehtabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+  .vehtab{background:var(--chip);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;color:var(--muted)}
+  .vehtab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .views{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:900px){.views{grid-template-columns:1fr}}
+  .viewbox{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px}
+  .viewbox h3{margin:0 0 8px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;display:flex;justify-content:space-between}
+  canvas#c2d{width:100%;height:auto;background:#0b121b;border-radius:8px;display:block}
+  #c3d{width:100%;height:340px;background:#0b121b;border-radius:8px}
+  .legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
+  .legend .lg{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--muted)}
+  .legend .sw{width:12px;height:12px;border-radius:3px}
+  .summary-table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:8px}
+  .summary-table th,.summary-table td{text-align:left;padding:8px;border-bottom:1px solid var(--line)}
+  .summary-table th{color:var(--muted);font-size:11px;text-transform:uppercase}
+  .pill{display:inline-block;font-size:11px;padding:2px 8px;border-radius:999px;background:var(--chip);border:1px solid var(--line)}
+  .pill.ok{color:var(--accent2)}.pill.warn{color:var(--warn)}.pill.bad{color:var(--danger)}
+  .recos{margin-top:8px}
+  .reco{display:flex;gap:11px;padding:12px 14px;border-radius:11px;margin-bottom:9px;background:var(--panel2);border:1px solid var(--line);border-left-width:4px}
+  .reco .ic{font-size:18px;flex:none}
+  .reco.good{border-left-color:var(--accent2)}
+  .reco.tip{border-left-color:var(--accent)}
+  .reco.warn{border-left-color:var(--warn)}
+  .reco.bad{border-left-color:var(--danger)}
+  .reco b{display:block;margin-bottom:2px;font-size:13px}
+  .reco span{font-size:12.5px;color:var(--muted)}
+  .unplaced{margin-top:14px;border:1px dashed var(--danger);border-radius:10px;padding:12px;background:rgba(239,68,68,.06)}
+  .sech{font-size:13px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:22px 0 8px}
+  .foot{margin-top:18px;color:var(--muted);font-size:11px;text-align:center}
+  /* ===== BRAND ===== */
+  .brand{display:flex;align-items:center;gap:14px}
+  .brand .logo{width:60px;height:60px;flex:none}
+  .wordmark{font-weight:800;font-size:30px;letter-spacing:-1px;line-height:1}
+  .wordmark .ask{color:#eef4fb}
+  .wordmark .b{background:linear-gradient(180deg,#5aa2ff,#1d63e6);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .wordmark .ai{color:#9fb4c9;font-weight:700}
+  .tagline{font-size:10.5px;letter-spacing:3px;color:#7d8ea3;text-transform:uppercase;margin-top:3px}
+  /* help */
+  .help-btn{background:var(--chip);border:1px solid var(--line);color:var(--txt);border-radius:999px;
+            width:34px;height:34px;font-size:16px;display:flex;align-items:center;justify-content:center;padding:0}
+  .help-btn:hover{border-color:var(--accent)}
+  .helpwrap{display:none;margin:0 0 18px}
+  .helpwrap.open{display:block}
+  .helpcard{background:linear-gradient(160deg,rgba(59,130,246,.12),var(--panel));border:1px solid var(--accent);
+            border-radius:14px;padding:20px}
+  .helpcard h3{margin:0 0 12px;font-size:15px}
+  .helpsteps{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:8px}
+  @media(max-width:760px){.helpsteps{grid-template-columns:1fr 1fr}}
+  .helpsteps .hs{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px}
+  .helpsteps .hs .num{color:var(--accent);font-weight:800;font-size:12px}
+  .helpsteps .hs b{display:block;font-size:13px;margin:3px 0}
+  .helpsteps .hs span{font-size:11.5px;color:var(--muted)}
+  .callout{display:flex;gap:10px;align-items:flex-start;background:rgba(59,130,246,.08);border:1px solid var(--line);
+           border-left:3px solid var(--accent);border-radius:10px;padding:11px 13px;margin-bottom:16px;font-size:12.5px;color:#c7d4e2}
+  .callout .ic{font-size:15px}
+  .params details{border:1px solid var(--line);border-radius:10px;padding:10px 14px;background:var(--panel2);margin-bottom:8px}
+  .params summary{cursor:pointer;font-weight:600;font-size:13px}
+  .params table{width:100%;border-collapse:collapse;margin-top:10px;font-size:12.5px}
+  .params td{padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+  .params td:first-child{color:var(--accent);font-weight:600;white-space:nowrap;width:38%}
+  @media print{.noprint{display:none!important}body{background:#fff;color:#000}.card,.kpi,.viewbox{background:#fff;color:#000;box-shadow:none;border-color:#ccc}.views{grid-template-columns:1fr}#c3d{height:300px}}
+  /* cookie banner */
+  #cookieBanner{display:none;position:fixed;left:16px;right:16px;bottom:16px;z-index:9999;
+    background:var(--panel);border:1px solid var(--accent);border-radius:14px;padding:16px 18px;
+    box-shadow:var(--shadow);gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap;max-width:1000px;margin:0 auto}
+  #cookieBanner p{margin:0;font-size:12.5px;color:var(--muted);flex:1;min-width:240px}
+  #cookieBanner a{color:var(--accent);cursor:pointer;text-decoration:underline}
+  #cookieBanner .cbtns{display:flex;gap:8px}
+  /* modal */
+  .modal{display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.6);
+    align-items:center;justify-content:center;padding:20px}
+  .modal .box{background:var(--panel);border:1px solid var(--line);border-radius:14px;max-width:680px;
+    width:100%;max-height:85vh;overflow:auto;padding:24px;box-shadow:var(--shadow)}
+  .modal h2{margin:0 0 4px;font-size:18px}
+  .modal h4{margin:16px 0 4px;font-size:13px;color:var(--accent)}
+  .modal p,.modal li{font-size:13px;color:#c7d4e2;line-height:1.6}
+  .modal .close{float:right;background:var(--chip);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:5px 11px;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="app">
+    <div class="brand">
+      <svg class="logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-label="askBitsy.ai">
+        <defs>
+          <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#26d6ff"/><stop offset="1" stop-color="#1d63e6"/>
+          </linearGradient>
+          <radialGradient id="gl" cx="50%" cy="45%" r="55%">
+            <stop offset="0" stop-color="#0d2236"/><stop offset="1" stop-color="#071018"/>
+          </radialGradient>
+        </defs>
+        <circle cx="50" cy="50" r="46" fill="url(#gl)" stroke="#1f7fd6" stroke-width="1"/>
+        <!-- meridians -->
+        <ellipse cx="50" cy="50" rx="22" ry="46" fill="none" stroke="#1f6fb8" stroke-width=".7" opacity=".7"/>
+        <ellipse cx="50" cy="50" rx="46" ry="20" fill="none" stroke="#1f6fb8" stroke-width=".7" opacity=".7"/>
+        <line x1="50" y1="4" x2="50" y2="96" stroke="#1f6fb8" stroke-width=".5" opacity=".5"/>
+        <!-- node dots -->
+        <g fill="#26d6ff"><circle cx="50" cy="4" r="2.4"/><circle cx="50" cy="96" r="2.4"/><circle cx="4" cy="50" r="2.4"/><circle cx="96" cy="50" r="2.4"/></g>
+        <!-- dot matrix (suggestion of continents) -->
+        <g fill="#1f8fd6" opacity=".75">
+          <circle cx="18" cy="34" r="1.1"/><circle cx="23" cy="33" r="1.1"/><circle cx="20" cy="39" r="1.1"/><circle cx="25" cy="38" r="1.1"/><circle cx="16" cy="44" r="1.1"/><circle cx="21" cy="45" r="1.1"/><circle cx="26" cy="44" r="1.1"/><circle cx="19" cy="50" r="1.1"/><circle cx="24" cy="51" r="1.1"/><circle cx="22" cy="56" r="1.1"/><circle cx="27" cy="57" r="1.1"/><circle cx="24" cy="62" r="1.1"/>
+          <circle cx="74" cy="34" r="1.1"/><circle cx="79" cy="35" r="1.1"/><circle cx="76" cy="40" r="1.1"/><circle cx="81" cy="41" r="1.1"/><circle cx="72" cy="45" r="1.1"/><circle cx="77" cy="46" r="1.1"/><circle cx="82" cy="47" r="1.1"/><circle cx="75" cy="52" r="1.1"/><circle cx="80" cy="53" r="1.1"/><circle cx="73" cy="58" r="1.1"/><circle cx="78" cy="59" r="1.1"/>
+        </g>
+        <!-- bulldog head -->
+        <g fill="none" stroke="url(#bg)" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round">
+          <path d="M34 30 L34 41 L29 47 L31 60 Q34 70 43 72 L57 72 Q66 70 69 60 L71 47 L66 41 L66 30"/>
+          <path d="M34 30 L30 24 L30 40"/>
+          <path d="M66 30 L70 24 L70 40"/>
+          <path d="M43 72 Q50 76 57 72"/>
+          <path d="M40 54 Q44 51 49 54 Q44 58 40 54 Z"/>
+          <path d="M60 54 Q56 51 51 54 Q56 58 60 54 Z"/>
+          <path d="M46 60 Q50 63 54 60"/>
+          <line x1="50" y1="56" x2="50" y2="60"/>
+          <path d="M36 48 L44 48 L47 51"/>
+        </g>
+        <g><circle cx="55" cy="49" r="1.6" fill="#1d3fae"/><circle cx="60" cy="49" r="1.6" fill="#26a8ff"/><circle cx="65" cy="49" r="1.6" fill="#26e0ff"/></g>
+      </svg>
+      <div>
+        <div class="wordmark"><span class="ask">ask</span><span class="b">Bitsy</span><span class="ai">.ai</span></div>
+        <div class="tagline">AI Platform for Smarter Support</div>
+      </div>
+    </div>
+    <div class="toolbar noprint">
+      <span class="badge" id="unitBadge">cm / kg</span>
+      <button class="help-btn" title="Kako se koristi" onclick="toggleHelp()">?</button>
+    </div>
+  </header>
+
+  <!-- HELP PANEL -->
+  <div class="helpwrap noprint" id="helpwrap">
+    <div class="helpcard">
+      <h3>📖 Kako se koristi — Loading Optimizer</h3>
+      <div class="helpsteps">
+        <div class="hs"><div class="num">KORAK 1</div><b>Tip robe</b><span>Izaberi da li je roba nepaletizovana, već na paletama, ili treba da je aplikacija sama složi na palete. Za poslednju opciju podesi tip palete, maks. visinu i težinu.</span></div>
+        <div class="hs"><div class="num">KORAK 2</div><b>Unos stavki</b><span>Dodaj kutije/palete preko gotovih presetova ili ručno. Za svaku stavku: dimenzije (D×Š×V), težinu, broj komada, da li sme da se slaže odozgo (⬆) i da li sme rotacija (⟳).</span></div>
+        <div class="hs"><div class="num">KORAK 3</div><b>Vozilo</b><span>Klikni vozilo ručno ili pritisni „Automatska preporuka" da aplikacija sama nađe najefikasnije. Custom dimenzije su takođe moguće.</span></div>
+        <div class="hs"><div class="num">KORAK 4</div><b>Rezultat</b><span>Vidi broj vozila, popunjenost, 2D/3D raspored i konkretne preporuke. „Štampa/PDF" pravi izveštaj.</span></div>
+      </div>
+      <div class="callout" style="margin:6px 0 14px"><span class="ic">💡</span><span><b>Saveti:</b> „Vrh ✓" isključi za robu na koju ništa ne sme odozgo (IBC, big bag, lomljivo). Položaj <b>◆ slobodno 3D</b> daje najbolju popunjenost ali samo za robu kojoj okretanje na bok ne smeta. U 2D prikazu prozirne stavke su naslagane na visini; 3D prikaz prevlačiš mišem.</span></div>
+      <div class="params" id="paramsBox"></div>
+    </div>
+  </div>
+
+  <!-- STEPPER -->
+  <div class="stepper noprint" id="stepper">
+    <div class="step active" data-s="1" onclick="goStep(1)"><div class="n">1</div><div class="t">Tip robe<br>i paletizacija</div></div>
+    <div class="step" data-s="2" onclick="goStep(2)"><div class="n">2</div><div class="t">Unos<br>stavki</div></div>
+    <div class="step" data-s="3" onclick="goStep(3)"><div class="n">3</div><div class="t">Izbor<br>vozila</div></div>
+    <div class="step" data-s="4" onclick="goStep(4)"><div class="n">4</div><div class="t">Rezultat<br>i preporuke</div></div>
+  </div>
+
+  <!-- ============ STEP 1 ============ -->
+  <div class="card step-panel" id="panel1">
+    <h2>Kako je roba pakovana?</h2>
+    <p class="lead">Izaberi režim — to određuje kako aplikacija optimizuje utovar.</p>
+    <div class="callout"><span class="ic">👉</span><span>Ako imaš gomilu raznih kutija a nisi siguran kako da ih spakuješ — izaberi <b>„Kutije → na palete"</b> i aplikacija će ih sama složiti na palete, pa optimizovati vozilo.</span></div>
+    <div class="choices" id="modeChoices">
+      <div class="choice" data-mode="loose" onclick="selMode('loose')">
+        <div class="ic">📦</div><h3>Nepaletizovano</h3>
+        <p>Kutije / komadi idu direktno u vozilo. Optimizujem slaganje u prostoru.</p>
+      </div>
+      <div class="choice" data-mode="pallet" onclick="selMode('pallet')">
+        <div class="ic">🟫</div><h3>Već na paletama</h3>
+        <p>Unosiš gotove palete (više dimenzija). Optimizujem raspored paleta u vozilu.</p>
+      </div>
+      <div class="choice" data-mode="boxes2pallet" onclick="selMode('boxes2pallet')">
+        <div class="ic">📦➡️🟫</div><h3>Kutije → na palete</h3>
+        <p>Prvo slažem kutije na palete, pa palete u vozilo. Dvostruka optimizacija.</p>
+      </div>
+    </div>
+
+    <div class="subopts" id="palletOpts" style="display:none">
+      <h4>Parametri paletizacije</h4>
+      <div class="grid3">
+        <div class="field">
+          <label>Tip palete</label>
+          <select id="palType">
+            <option value="120,80">EUR (1200×800)</option>
+            <option value="120,100">EUR2 / Industrijska (1200×1000)</option>
+            <option value="100,120">Industrijska okrenuta (1000×1200)</option>
+            <option value="custom">Custom…</option>
+          </select>
+        </div>
+        <div class="field" id="palCustom" style="display:none">
+          <label>Paleta D×Š (cm)</label>
+          <div class="grid2"><input type="number" id="palCL" value="120"><input type="number" id="palCW" value="80"></div>
+        </div>
+        <div class="field">
+          <label>Maks. visina palete sa robom (cm)</label>
+          <input type="number" id="palMaxH" value="180">
+        </div>
+        <div class="field">
+          <label>Maks. težina palete (kg)</label>
+          <input type="number" id="palMaxKg" value="1000">
+        </div>
+      </div>
+      <div class="grid3">
+        <div class="field">
+          <label>Visina prazne palete (cm)</label>
+          <input type="number" id="palBaseH" value="14.4">
+        </div>
+        <div class="field">
+          <label>Težina prazne palete (kg)</label>
+          <input type="number" id="palTare" value="22">
+        </div>
+        <div class="field" style="display:flex;align-items:flex-end;gap:8px">
+          <input type="checkbox" id="palStack" style="width:auto">
+          <label style="margin:0">Palete se mogu slagati u 2 nivoa</label>
+        </div>
+      </div>
+      <div class="hint">Aplikacija će kutije različitih dimenzija da rasporedi na palete poštujući visinu i težinu, a zatim palete u vozilo.</div>
+    </div>
+    <div class="navbtns"><span></span><button class="btn-primary" onclick="goStep(2)">Dalje →</button></div>
+  </div>
+
+  <!-- ============ STEP 2 ============ -->
+  <div class="card step-panel" id="panel2" style="display:none">
+    <h2 id="step2title">Unesi stavke</h2>
+    <p class="lead" id="step2lead">Dodaj kutije ili palete. Možeš koristiti gotove tipove pakovanja.</p>
+    <div class="callout"><span class="ic">📏</span><span>D = dužina, Š = širina, V = visina. <b>Kom</b> = broj komada. <b>Položaj/rotacija</b> bira kako stavka sme da se okrene (uspravno / fiksno / slobodno 3D). <b>Vrh ✓</b> = na stavku sme da se stavi druga roba. Detaljno objašnjenje je ispod tabele.</span></div>
+
+    <div class="grid2">
+      <div class="field">
+        <label>Mere</label>
+        <select id="unitDim" onchange="updateUnitBadge()">
+          <option value="cm">centimetri (cm)</option><option value="mm">milimetri (mm)</option><option value="in">inči (in)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Težina</label>
+        <select id="unitWt" onchange="updateUnitBadge()">
+          <option value="kg">kilogrami (kg)</option><option value="lb">funte (lb)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Brzi unos — standardni tip pakovanja</label>
+      <div class="toolbar">
+        <select id="presetSelect" style="flex:2"></select>
+        <button class="btn-ghost btn-sm" onclick="addPreset()">+ Dodaj</button>
+      </div>
+    </div>
+
+    <table class="items">
+      <thead><tr>
+        <th style="width:20%">Naziv</th><th>D</th><th>Š</th><th>V</th><th>Kg</th><th>Kom</th>
+        <th style="width:16%">Položaj / rotacija</th><th title="Sme li druga roba na vrh">Vrh</th><th></th>
+      </tr></thead>
+      <tbody id="itemsBody"></tbody>
+    </table>
+    <div class="hint" style="margin-top:8px;line-height:1.7">
+      <b>Položaj / rotacija</b> — utiče na optimizaciju:<br>
+      • <b>↑ uspravno + okret</b> — stoji uspravno (visina fiksna), sme okret 90° u horizontali. Tipično za palete i većinu robe „ovom stranom gore".<br>
+      • <b>↑ uspravno fiksno</b> — stoji uspravno, bez ikakve rotacije (npr. IBC, big bag, bubanj).<br>
+      • <b>◆ slobodno 3D</b> — sme da se položi na bok ili teme (svih 6 orijentacija) → najbolja popunjenost, samo za robu kojoj orijentacija nije bitna.<br>
+      <b>Vrh</b> ✓ = na tu stavku sme da se stavi druga roba (nosi teret); isključi za lomljivo / neslagljivo.
+    </div>
+    <button class="btn-ghost btn-sm" style="margin-top:8px" onclick="addItem()">+ Prazan red</button>
+    <button class="btn-ghost btn-sm" style="margin-top:8px" onclick="loadDemo()">Učitaj demo</button>
+
+    <div class="navbtns"><button class="btn-ghost" onclick="goStep(1)">← Nazad</button>
+      <button class="btn-primary" onclick="goStep(3)">Dalje →</button></div>
+  </div>
+
+  <!-- ============ STEP 3 ============ -->
+  <div class="card step-panel" id="panel3" style="display:none">
+    <h2>Izbor vozila</h2>
+    <p class="lead">Izaberi vozilo ručno, ili pusti aplikaciju da preporuči najefikasnije.</p>
+    <div class="callout"><span class="ic">✨</span><span><b>Automatska preporuka</b> isproba sva standardna vozila i bira ono kojim sav teret staje uz najmanji broj vozila i najveću popunjenost. Zeleni okvir = preporučeno.</span></div>
+    <div class="field" style="max-width:520px">
+      <label>Strategija pakovanja</label>
+      <select id="packStrategy">
+        <option value="auto">🤖 Auto — izračunaj oba i izaberi bolje (preporučeno)</option>
+        <option value="grouped">🧱 Grupisano po vrsti (homogeni blokovi — lakše za utovar)</option>
+        <option value="mixed">🧩 Mešovito (maksimalna kombinatorika)</option>
+      </select>
+      <div class="hint">Homogeno pakovanje (ista roba zajedno) često daje bolju iskorišćenost i mnogo je lakše fizički utovariti. „Auto" računa obe varijante i bira efikasniju.</div>
+    </div>
+    <div class="toolbar" style="margin-bottom:10px">
+      <button class="btn-primary btn-sm" onclick="autoRecommend()">✨ Automatska preporuka vozila</button>
+      <span class="hint" id="autoMsg"></span>
+    </div>
+    <div class="vehgrid" id="vehGrid"></div>
+    <div id="customVeh" style="display:none;margin-top:14px" class="subopts">
+      <h4>Custom dimenzije vozila</h4>
+      <div class="grid2">
+        <div class="field"><label>Dužina (cm)</label><input type="number" id="cvL" value="1200"></div>
+        <div class="field"><label>Širina (cm)</label><input type="number" id="cvW" value="235"></div>
+        <div class="field"><label>Visina (cm)</label><input type="number" id="cvH" value="239"></div>
+        <div class="field"><label>Nosivost (kg)</label><input type="number" id="cvP" value="24000"></div>
+      </div>
+    </div>
+    <div class="navbtns"><button class="btn-ghost" onclick="goStep(2)">← Nazad</button>
+      <button class="btn-primary" onclick="goStep(4)">⚙️ Izračunaj →</button></div>
+  </div>
+
+  <!-- ============ STEP 4 ============ -->
+  <div class="card step-panel" id="panel4" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+      <h2 style="margin:0">Rezultat optimizacije</h2>
+      <div class="toolbar noprint">
+        <button class="btn-ghost btn-sm" onclick="window.print()">🖨️ Štampa / PDF</button>
+        <button class="btn-ghost btn-sm" onclick="goStep(1)">↺ Novi proračun</button>
+      </div>
+    </div>
+    <div id="palSummaryBox"></div>
+    <div class="kpis" style="margin-top:14px">
+      <div class="kpi"><div class="v" id="kpiVeh">–</div><div class="l" id="kpiVehL">Potrebno vozila</div></div>
+      <div class="kpi"><div class="v" id="kpiVol">–</div><div class="l">Iskorišćenost zapremine</div><div class="bar" id="barVol"><i></i></div></div>
+      <div class="kpi"><div class="v" id="kpiFloor">–</div><div class="l">Iskorišćenost poda</div><div class="bar" id="barFloor"><i></i></div></div>
+      <div class="kpi"><div class="v" id="kpiWt">–</div><div class="l">Iskorišćenost težine</div><div class="bar" id="barWt"><i></i></div></div>
+    </div>
+
+    <div class="sech">Preporuke</div>
+    <div class="recos" id="recos"></div>
+
+    <div class="sech">Vizuelni prikaz</div>
+    <div class="vehtabs" id="vehTabs"></div>
+    <div class="views">
+      <div class="viewbox"><h3><span>Pogled odozgo (2D)</span><span id="lblTop"></span></h3><canvas id="c2d" width="900" height="420"></canvas></div>
+      <div class="viewbox"><h3><span>3D prikaz</span><span class="noprint" style="font-size:10px">prevuci · skrol = zum</span></h3><div id="c3d"></div></div>
+    </div>
+    <div class="legend" id="legend"></div>
+
+    <div class="sech">Pregled po vozilu</div>
+    <table class="summary-table" id="sumTable"></table>
+    <div id="unplacedBox"></div>
+
+    <div class="navbtns noprint"><button class="btn-ghost" onclick="goStep(3)">← Promeni vozilo</button><span></span></div>
+  </div>
+
+  <div class="foot">Heuristička optimizacija (Extreme-Point 3D packing) — rezultat je vrlo dobra, ne nužno teorijski optimalna popunjenost. Dimenzije vozila su nominalne; proveri tačne unutrašnje mere sa prevoznikom.<br>
+    <span style="cursor:pointer;color:var(--accent);text-decoration:underline" onclick="openPrivacy()">Politika privatnosti</span> · © askBitsy.ai</div>
+</div>
+
+<!-- COOKIE BANNER -->
+<div id="cookieBanner" class="noprint">
+  <p>Koristimo anonimnu analitiku da bismo razumeli kako se alat koristi i unapredili ga. Nema reklama ni profilisanja. Detalji u <a onclick="openPrivacy()">Politici privatnosti</a>.</p>
+  <div class="cbtns">
+    <button class="btn-ghost btn-sm" onclick="setConsent('no')">Odbij</button>
+    <button class="btn-primary btn-sm" onclick="setConsent('yes')">Prihvati</button>
+  </div>
+</div>
+
+<!-- PRIVACY MODAL -->
+<div id="privacyModal" class="modal noprint">
+  <div class="box">
+    <button class="close" onclick="closePrivacy()">Zatvori ✕</button>
+    <h2>Politika privatnosti</h2>
+    <p style="color:var(--muted)">Poslednje ažuriranje: jun 2026.</p>
+    <h4>Ko smo</h4>
+    <p>Ovaj alat („Loading Optimizer") pruža askBitsy.ai. Za pitanja o podacima: <b>mpopovic@danubia.group</b>.</p>
+    <h4>Koje podatke prikupljamo</h4>
+    <p>Uz vaš pristanak koristimo anonimnu analitiku (PostHog, EU serveri) koja beleži način korišćenja alata: posete, izabrane opcije (tip robe, vozilo, strategija) i tehničke podatke (tip uređaja, gruba lokacija na nivou zemlje). <b>Ne prikupljamo</b> imena, e-mail adrese niti sadržaj vaših poslovnih proračuna radi identifikacije.</p>
+    <h4>Gde se obrađuje</h4>
+    <p>Sami proračuni (dimenzije, težine, rezultati) izvršavaju se lokalno u vašem pregledaču i ne šalju se na naše servere. Analitički događaji se obrađuju na EU serverima.</p>
+    <h4>Kolačići</h4>
+    <p>Analitika se pokreće tek nakon što kliknete „Prihvati". Vaš izbor pamtimo lokalno u pregledaču. Ako odbijete, analitika se ne učitava.</p>
+    <h4>Vaša prava (GDPR)</h4>
+    <p>Imate pravo na pristup, ispravku i brisanje podataka, kao i na opoziv pristanka u svakom trenutku (obrišite podatke pregledača ili nas kontaktirajte). Pritužbu možete uputiti nadležnom telu za zaštitu podataka.</p>
+    <h4>Kontakt</h4>
+    <p>mpopovic@danubia.group</p>
+    <p style="color:var(--muted);font-size:11.5px;margin-top:14px">Napomena: ovo je polazni šablon. Pre javnog objavljivanja preporučljivo je da ga proveri pravno lice i prilagodi konkretnom poslovanju.</p>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<!-- ============================================================
+     ANALITIKA (PostHog) — Faza 1
+     >>> ZAMENI 'phc_TVOJ_KLJUC_OVDE' svojim Project API ključem iz PostHog-a.
+     Dok je placeholder, analitika je isključena (aplikacija radi normalno).
+     ============================================================ -->
+<script>
+  window.POSTHOG_KEY = 'phc_TVOJ_KLJUC_OVDE';            // <-- ovde ide tvoj ključ
+  window.POSTHOG_HOST = 'https://eu.i.posthog.com';      // EU server (GDPR)
+  function initAnalytics(){
+    if (window.__ph_inited) return;
+    if (!(window.POSTHOG_KEY && window.POSTHOG_KEY.indexOf('phc_')===0 && window.POSTHOG_KEY!=='phc_TVOJ_KLJUC_OVDE')) return;
+    window.__ph_inited = true;
+    !function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.async=!0,p.src=s.api_host+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+".people (stub)"},o="capture identify alias people.set people.set_once set_config register register_once unregister opt_out_capturing has_opted_out_capturing opt_in_capturing reset isFeatureEnabled onFeatureFlags getFeatureFlag getFeatureFlagPayload reloadFeatureFlags group updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures getActiveMatchingSurveys getSurveys onSessionId".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
+    posthog.init(window.POSTHOG_KEY,{api_host:window.POSTHOG_HOST,person_profiles:'identified_only'});
+    track('app_loaded');
+  }
+  // Bezbedan omotač — radi i kad analitika nije uključena
+  function track(name, props){ try{ if(window.posthog && posthog.capture) posthog.capture(name, props||{}); }catch(e){} }
+  // GDPR pristanak
+  function setConsent(v){ try{localStorage.setItem('ab_consent',v);}catch(e){} var b=document.getElementById('cookieBanner'); if(b)b.style.display='none'; if(v==='yes') initAnalytics(); }
+  function openPrivacy(){var m=document.getElementById('privacyModal'); if(m)m.style.display='flex';}
+  function closePrivacy(){var m=document.getElementById('privacyModal'); if(m)m.style.display='none';}
+  document.addEventListener('DOMContentLoaded',function(){
+    var c=null; try{c=localStorage.getItem('ab_consent');}catch(e){}
+    if(c==='yes'){ initAnalytics(); }
+    else if(c!=='no'){ var b=document.getElementById('cookieBanner'); if(b)b.style.display='flex'; }
+  });
+</script>
+
+<script>
+/* ===== PODACI ===== */
+const VEHICLES=[
+  {grp:"Kontejneri",id:"20dv",name:"20' Standard",L:589,W:235,H:239,payload:28000},
+  {grp:"Kontejneri",id:"40dv",name:"40' Standard",L:1203,W:235,H:239,payload:26500},
+  {grp:"Kontejneri",id:"40hc",name:"40' High Cube",L:1203,W:235,H:270,payload:26500},
+  {grp:"Kontejneri",id:"45hc",name:"45' High Cube",L:1355,W:235,H:270,payload:25700},
+  {grp:"Kamioni EU",id:"tauto",name:"Tautliner 13.6m",L:1360,W:245,H:267,payload:24000},
+  {grp:"Kamioni EU",id:"mega",name:"Mega 13.6m",L:1360,W:248,H:300,payload:24000},
+  {grp:"Kamioni EU",id:"rigid",name:"Rigid 7.2m",L:720,W:245,H:260,payload:12000},
+  {grp:"Kamioni EU",id:"solo",name:"Solo 6.0m",L:600,W:240,H:240,payload:8000},
+  {grp:"Ostalo",id:"custom",name:"⚙️ Custom",L:1200,W:235,H:239,payload:24000},
+];
+/* orient: 'fixed' = uspravno bez rotacije | 'upright' = uspravno + okret 90° | 'free' = slobodno 3D
+   bear: true = na nju sme da se slaže druga roba (nosi teret) */
+const PRESETS=[
+  {name:"EUR paleta (1200×800)",L:120,W:80,H:144,kg:300,bear:true,orient:'upright',pallet:true},
+  {name:"EUR2 paleta (1200×1000)",L:120,W:100,H:144,kg:400,bear:true,orient:'upright',pallet:true},
+  {name:"Industrijska (1200×1000)",L:120,W:100,H:160,kg:500,bear:true,orient:'upright',pallet:true},
+  {name:"Pola palete (800×600)",L:80,W:60,H:120,kg:150,bear:true,orient:'upright',pallet:true},
+  {name:"Mala kutija (40×30×30)",L:40,W:30,H:30,kg:8,bear:true,orient:'free'},
+  {name:"Srednja kutija (60×40×40)",L:60,W:40,H:40,kg:18,bear:true,orient:'free'},
+  {name:"Velika kutija (80×60×60)",L:80,W:60,H:60,kg:35,bear:true,orient:'free'},
+  {name:"Bubanj/Drum (60×60×90)",L:60,W:60,H:90,kg:120,bear:false,orient:'fixed'},
+  {name:"IBC tank (120×100×116)",L:120,W:100,H:116,kg:1100,bear:false,orient:'fixed',pallet:true},
+  {name:"Big bag (90×90×110)",L:90,W:90,H:110,kg:750,bear:false,orient:'fixed'},
+  {name:"Karton panel (140×20×90)",L:140,W:20,H:90,kg:25,bear:true,orient:'upright'},
+  {name:"Sanduk/Crate (100×80×80)",L:100,W:80,H:80,kg:200,bear:true,orient:'fixed'},
+];
+const PALETTE=["#3b82f6","#22c55e","#f59e0b","#ef4444","#a855f7","#06b6d4","#ec4899","#84cc16","#f97316","#14b8a6","#6366f1","#eab308"];
+
+let MODE='loose', STEP=1, itemRows=[], chosenVeh='40hc', RESULT=null, PALRESULT=null, activeBin=0, threeState=null;
+
+/* ===== UNITS ===== */
+const dimToCm=v=>{const u=document.getElementById('unitDim').value;return u==='mm'?v/10:u==='in'?v*2.54:+v;};
+const wtToKg=v=>document.getElementById('unitWt').value==='lb'?v*0.453592:+v;
+function updateUnitBadge(){document.getElementById('unitBadge').textContent=
+  document.getElementById('unitDim').value+' / '+document.getElementById('unitWt').value;}
+
+/* ===== STEP NAV ===== */
+function goStep(s){
+  if(s>1 && !MODE){alert('Izaberi tip robe.');return;}
+  if(s===3 && validItems().length===0){alert('Dodaj bar jednu stavku sa dimenzijama.');return;}
+  if(s===4){ calculate(); }
+  STEP=s;
+  document.querySelectorAll('.step-panel').forEach(p=>p.style.display='none');
+  document.getElementById('panel'+s).style.display='block';
+  document.querySelectorAll('#stepper .step').forEach(el=>{
+    const n=+el.dataset.s; el.classList.toggle('active',n===s); el.classList.toggle('done',n<s);
+  });
+  window.scrollTo({top:0,behavior:'smooth'});
+  if(s===3) renderVehicles();
+}
+
+/* ===== STEP 1 ===== */
+function selMode(m){
+  MODE=m; track('mode_selected',{mode:m});
+  document.querySelectorAll('#modeChoices .choice').forEach(c=>c.classList.toggle('sel',c.dataset.mode===m));
+  document.getElementById('palletOpts').style.display = m==='boxes2pallet'?'block':'none';
+  // step2 labels
+  const t=document.getElementById('step2title'), l=document.getElementById('step2lead');
+  if(m==='pallet'){t.textContent='Unesi palete';l.textContent='Dodaj gotove palete (mogu biti različitih dimenzija i visina).';}
+  else if(m==='boxes2pallet'){t.textContent='Unesi kutije';l.textContent='Dodaj kutije — aplikacija će ih sama rasporediti na palete.';}
+  else{t.textContent='Unesi kutije / komade';l.textContent='Roba ide direktno u vozilo, bez paleta.';}
+}
+document.getElementById('palType').addEventListener('change',e=>{
+  document.getElementById('palCustom').style.display = e.target.value==='custom'?'block':'none';
+});
+
+/* ===== STEP 2 items ===== */
+function initPresets(){document.getElementById('presetSelect').innerHTML=
+  PRESETS.map((p,i)=>'<option value="'+i+'">'+p.name+'</option>').join('');}
+function addItem(d){itemRows.push(d||{name:'Stavka',L:'',W:'',H:'',kg:'',qty:1,bear:true,orient:'upright'});renderItems();}
+function addPreset(){const p=PRESETS[+document.getElementById('presetSelect').value];
+  itemRows.push({name:p.name,L:p.L,W:p.W,H:p.H,kg:p.kg,qty:p.pallet?1:10,bear:p.bear,orient:p.orient});renderItems();}
+function orientOpts(v){return [['upright','↑ uspravno + okret'],['fixed','↑ uspravno fiksno'],['free','◆ slobodno 3D']]
+  .map(o=>'<option value="'+o[0]+'"'+(v===o[0]?' selected':'')+'>'+o[1]+'</option>').join('');}
+function renderItems(){document.getElementById('itemsBody').innerHTML=itemRows.map((r,i)=>`
+  <tr>
+   <td><input style="width:100%" value="${r.name??''}" oninput="upd(${i},'name',this.value)"></td>
+   <td><input style="width:100%" type="number" value="${r.L}" oninput="upd(${i},'L',this.value)"></td>
+   <td><input style="width:100%" type="number" value="${r.W}" oninput="upd(${i},'W',this.value)"></td>
+   <td><input style="width:100%" type="number" value="${r.H}" oninput="upd(${i},'H',this.value)"></td>
+   <td><input style="width:100%" type="number" value="${r.kg}" oninput="upd(${i},'kg',this.value)"></td>
+   <td><input style="width:100%" type="number" value="${r.qty}" oninput="upd(${i},'qty',this.value)"></td>
+   <td><select style="width:100%" onchange="upd(${i},'orient',this.value)">${orientOpts(r.orient||'upright')}</select></td>
+   <td style="text-align:center" title="Sme li druga roba na vrh (nosi teret)"><input type="checkbox" ${r.bear?'checked':''} onchange="upd(${i},'bear',this.checked)"></td>
+   <td><button class="btn-danger btn-sm" onclick="delItem(${i})">✕</button></td>
+  </tr>`).join('');}
+function upd(i,k,v){itemRows[i][k]=v;}
+function delItem(i){itemRows.splice(i,1);renderItems();}
+function validItems(){return itemRows.filter(r=>dimToCm(r.L)>0&&dimToCm(r.W)>0&&dimToCm(r.H)>0&&(+r.qty>0));}
+function loadDemo(){
+  if(MODE==='pallet'){
+    itemRows=[{name:"EUR palete A",L:120,W:80,H:150,kg:420,qty:14,bear:false,orient:'upright'},
+              {name:"EUR2 palete B",L:120,W:100,H:180,kg:650,qty:6,bear:false,orient:'upright'}];
+  }else{
+    itemRows=[{name:"Kartoni veliki",L:60,W:40,H:40,kg:18,qty:120,bear:true,orient:'free'},
+              {name:"Kartoni mali",L:40,W:30,H:30,kg:6,qty:90,bear:true,orient:'free'},
+              {name:"Sanduci",L:100,W:80,H:80,kg:160,qty:10,bear:true,orient:'upright'}];
+  }
+  renderItems();
+}
+
+/* ===== STEP 3 vehicles ===== */
+function getVehicleById(id){
+  if(id==='custom')return{id:'custom',name:'Custom',L:+cvL.value,W:+cvW.value,H:+cvH.value,payload:+cvP.value};
+  return VEHICLES.find(v=>v.id===id);
+}
+function renderVehicles(bestId){
+  document.getElementById('vehGrid').innerHTML=VEHICLES.map(v=>{
+    const sel=v.id===chosenVeh?'sel':'';const best=bestId&&v.id===bestId?'<span class="tagbest">PREPORUKA</span>':'';
+    const spec=v.id==='custom'?'tvoje dimenzije':v.L+'×'+v.W+'×'+v.H+' · '+(v.payload/1000)+'t';
+    return `<div class="vehcard ${sel} ${bestId&&v.id===bestId?'recommend':''}" onclick="pickVeh('${v.id}')">
+      <div class="nm">${v.name}${best}</div><div class="sp">${spec}</div></div>`;
+  }).join('');
+  document.getElementById('customVeh').style.display = chosenVeh==='custom'?'block':'none';
+}
+function pickVeh(id){chosenVeh=id;renderVehicles();}
+function autoRecommend(){
+  const items=validItems(); if(!items.length){alert('Prvo unesi stavke.');return;}
+  const strat=document.getElementById('packStrategy').value;
+  const strategies = strat==='auto'?['grouped','mixed']:[strat];
+  let best=null;
+  VEHICLES.filter(v=>v.id!=='custom').forEach(v=>{
+    strategies.forEach(st=>{
+      const {res}=runPipeline(items,v,st);
+      if(res.unplaced.length)return;
+      const sc=scoreOf(res,v);
+      const score=sc.bins*1e9 - sc.fill*1e6;
+      if(!best||score<best.score)best={id:v.id,score,bins:sc.bins,fill:sc.fill};
+    });
+  });
+  if(!best){document.getElementById('autoMsg').textContent='Nijedno standardno vozilo ne primi sve u limitu — probaj custom ili podeli teret.';return;}
+  chosenVeh=best.id; renderVehicles(best.id);
+  const v=VEHICLES.find(x=>x.id===best.id);
+  document.getElementById('autoMsg').textContent='Preporuka: '+best.bins+' × '+v.name+' (popunjenost ~'+(best.fill*100).toFixed(0)+'%).';
+  track('auto_recommend',{vehicle:best.id,vehicles_needed:best.bins});
+}
+
+/* ============================================================
+   CORE PACKER — Extreme Point heuristika
+   ============================================================ */
+function itemsToPieces(items){
+  let pieces=[];
+  items.forEach((it,gi)=>{
+    const L=dimToCm(it.L),W=dimToCm(it.W),H=dimToCm(it.H),kg=wtToKg(it.kg||0),qty=Math.floor(+it.qty||0);
+    for(let n=0;n<qty;n++)pieces.push({gi,name:it.name||('Stavka '+(gi+1)),L,W,H,kg,bear:it.bear!==false,orient:it.orient||'upright',vol:L*W*H});
+  });
+  pieces.sort((a,b)=>b.vol-a.vol||b.H-a.H);
+  return pieces;
+}
+function orderPieces(pieces,strategy){
+  if(strategy==='grouped'){
+    // homogeno: drži istu vrstu zajedno; veće grupe (po ukupnoj zapremini) prve
+    const tot={};pieces.forEach(p=>tot[p.gi]=(tot[p.gi]||0)+p.vol);
+    return pieces.slice().sort((a,b)=>(tot[b.gi]-tot[a.gi])||(a.gi-b.gi)||(b.vol-a.vol)||(b.H-a.H));
+  }
+  return pieces.slice().sort((a,b)=>b.vol-a.vol||b.H-a.H); // mešovito
+}
+function packInto(pieces,veh,maxBins,supportNeed,strategy){
+  pieces=orderPieces(pieces,strategy||'mixed');
+  const bins=[],unplaced=[];
+  const ori=p=>{const L=p.L,W=p.W,H=p.H;let b;
+    if(p.orient==='fixed') b=[[L,W,H]];
+    else if(p.orient==='free') b=[[L,W,H],[W,L,H],[L,H,W],[H,L,W],[W,H,L],[H,W,L]];
+    else b=[[L,W,H],[W,L,H]]; // upright + okret
+    return b.map(o=>({l:o[0],w:o[1],h:o[2]}));};
+  const ov=(a,b)=>a.x<b.x+b.l&&a.x+a.l>b.x&&a.y<b.y+b.w&&a.y+a.w>b.y&&a.z<b.z+b.h&&a.z+a.h>b.z;
+  const sup=(c,bin)=>{if(c.z<=0.01)return 1;let cov=0;for(const q of bin.pieces){if(Math.abs(q.z+q.h-c.z)>0.5)continue;
+    const ox=Math.max(0,Math.min(c.x+c.l,q.x+q.l)-Math.max(c.x,q.x)),oy=Math.max(0,Math.min(c.y+c.w,q.y+q.w)-Math.max(c.y,q.y));cov+=ox*oy;}return cov/(c.l*c.w);};
+  const onNS=(c,bin)=>{for(const q of bin.pieces){if(q.bear)continue;if(Math.abs(q.z+q.h-c.z)>0.5)continue;
+    const ox=Math.max(0,Math.min(c.x+c.l,q.x+q.l)-Math.max(c.x,q.x)),oy=Math.max(0,Math.min(c.y+c.w,q.y+q.w)-Math.max(c.y,q.y));if(ox>0&&oy>0)return true;}return false;};
+  const tryP=(p,bin)=>{let best=null;const eps=bin.eps.slice().sort((a,b)=>a.z-b.z||a.y-b.y||a.x-b.x);
+    for(const o of ori(p))for(const ep of eps){const c={x:ep.x,y:ep.y,z:ep.z,l:o.l,w:o.w,h:o.h};
+      if(c.x+c.l>veh.L+0.5||c.y+c.w>veh.W+0.5||c.z+c.h>veh.H+0.5)continue;
+      let bad=false;for(const q of bin.pieces)if(ov(c,q)){bad=true;break;}if(bad)continue;
+      if(onNS(c,bin))continue;if(sup(c,bin)<supportNeed)continue;
+      const s=c.z*1e6+c.y*1e3+c.x;if(!best||s<best.score)best={...c,score:s};}return best;};
+  const addEP=(b,s)=>{b.eps.push({x:s.x+s.l,y:s.y,z:s.z},{x:s.x,y:s.y+s.w,z:s.z},{x:s.x,y:s.y,z:s.z+s.h});if(b.eps.length>500)b.eps=b.eps.slice(-500);};
+  for(const p of pieces){let placed=false;
+    for(const bin of bins){if(bin.weight+p.kg>veh.payload+0.5)continue;const s=tryP(p,bin);
+      if(s){bin.pieces.push({...p,x:s.x,y:s.y,z:s.z,l:s.l,w:s.w,h:s.h});bin.weight+=p.kg;addEP(bin,s);placed=true;break;}}
+    if(!placed){if(bins.length<maxBins){const b={pieces:[],eps:[{x:0,y:0,z:0}],weight:0};const s=tryP(p,b);
+      if(s){b.pieces.push({...p,x:s.x,y:s.y,z:s.z,l:s.l,w:s.w,h:s.h});b.weight+=p.kg;addEP(b,s);bins.push(b);}else unplaced.push(p);}else unplaced.push(p);}}
+  return {bins,unplaced};
+}
+
+/* ===== PALLETIZACIJA: kutije -> palete ===== */
+function getPalletBase(){
+  const v=document.getElementById('palType').value;
+  if(v==='custom')return{L:+document.getElementById('palCL').value,W:+document.getElementById('palCW').value};
+  const [L,W]=v.split(',').map(Number);return{L,W};
+}
+function buildPalletsAsPieces(items,strategy){
+  const base=getPalletBase();
+  const maxH=+document.getElementById('palMaxH').value, baseH=+document.getElementById('palBaseH').value;
+  const maxKg=+document.getElementById('palMaxKg').value, tare=+document.getElementById('palTare').value;
+  const stackPal=document.getElementById('palStack').checked;
+  const usableH=Math.max(1,maxH-baseH);
+  const palBin={L:base.L,W:base.W,H:usableH,payload:Math.max(1,maxKg-tare)};
+  let palBins=[], unplaced=[];
+  if(strategy==='grouped'){
+    // homogene palete: svaka vrsta robe na svoje palete
+    const byG={}; itemsToPieces(items).forEach(p=>{(byG[p.gi]=byG[p.gi]||[]).push(p);});
+    Object.values(byG).forEach(boxes=>{
+      const r=packInto(boxes,palBin,9999,0.5,'grouped');
+      palBins=palBins.concat(r.bins); unplaced=unplaced.concat(r.unplaced);
+    });
+  }else{
+    const r=packInto(itemsToPieces(items),palBin,9999,0.5,'mixed');
+    palBins=r.bins; unplaced=r.unplaced;
+  }
+  const pieces=[],palDetails=[];
+  palBins.forEach((b,i)=>{
+    const topH=b.pieces.reduce((m,p)=>Math.max(m,p.z+p.h),0);
+    const totH=baseH+topH, kg=tare+b.weight;
+    const gset=[...new Set(b.pieces.map(p=>p.gi))];
+    palDetails.push({idx:i+1,h:totH,kg,boxes:b.pieces.length,fill:topH/usableH,homo:gset.length===1,gi:gset[0]});
+    pieces.push({gi:gset.length===1?gset[0]:0,name:'Paleta '+(i+1),L:base.L,W:base.W,H:totH,kg,
+                 bear:stackPal,orient:'upright',vol:base.L*base.W*totH, isPallet:true, content:b.pieces, baseH});
+  });
+  return {pieces, palDetails, unplaced, base, usableH, maxH};
+}
+
+/* ===== STRATEGIJA: pipeline + ocena ===== */
+let STRATCOMP=null;
+function runPipeline(items,veh,strategy){
+  let pieces,palInfo=null;
+  if(MODE==='boxes2pallet'){palInfo=buildPalletsAsPieces(items,strategy);pieces=palInfo.pieces;}
+  else pieces=itemsToPieces(items);
+  const res=packInto(pieces.map(p=>({...p})),veh,30,0.6,strategy);
+  res.veh=veh;
+  return {res,palInfo};
+}
+function scoreOf(res,veh){
+  const used=res.bins.reduce((s,b)=>s+b.pieces.reduce((t,p)=>t+p.l*p.w*p.h,0),0);
+  const cap=res.bins.length*veh.L*veh.W*veh.H;
+  return {bins:res.bins.length,fill:cap?used/cap:0,unp:res.unplaced.length,pal:res.palLen||0};
+}
+// vraća true ako je A bolji od B: manje neutovareno → manje vozila → veća popunjenost
+function better(a,b){
+  if(a.unp!==b.unp)return a.unp<b.unp;
+  if(a.bins!==b.bins)return a.bins<b.bins;
+  return a.fill>b.fill;
+}
+
+/* ===== CALCULATE ===== */
+function calculate(){
+  const veh=getVehicleById(chosenVeh);
+  const items=validItems();
+  const strat=document.getElementById('packStrategy').value;
+  let pipe, usedStrat=strat;
+  if(strat==='auto'){
+    const g=runPipeline(items,veh,'grouped'), m=runPipeline(items,veh,'mixed');
+    const sg=scoreOf(g.res,veh), sm=scoreOf(m.res,veh);
+    sg.pal=g.palInfo?g.palInfo.palDetails.length:0; sm.pal=m.palInfo?m.palInfo.palDetails.length:0;
+    const pickG=better(sg,sm)|| (!better(sm,sg)); // tie → preferiraj grupisano (lakše za utovar)
+    pipe=pickG?g:m; usedStrat=pickG?'grouped':'mixed';
+    STRATCOMP={grouped:sg,mixed:sm,chosen:usedStrat};
+  }else{
+    pipe=runPipeline(items,veh,strat); STRATCOMP=null;
+  }
+  RESULT=pipe.res; RESULT.usedStrat=usedStrat;
+  PALRESULT=pipe.palInfo;
+  renderResults(pipe.palInfo);
+  track('calculate_run',{mode:MODE,strategy:usedStrat,vehicle:chosenVeh,
+    vehicles_needed:RESULT.bins.length,unplaced:RESULT.unplaced.length,item_types:items.length});
+}
+function renderResults(palInfo){
+  const veh=RESULT.veh,bins=RESULT.bins;
+  // pallet summary
+  const pb=document.getElementById('palSummaryBox');
+  if(palInfo){
+    const avgFill=palInfo.palDetails.reduce((s,p)=>s+p.fill,0)/(palInfo.palDetails.length||1)*100;
+    pb.innerHTML='<div class="reco tip" style="margin-top:14px"><div class="ic">🟫</div><div>'+
+      '<b>Paletizacija: napravljeno '+palInfo.palDetails.length+' paleta'+(palInfo.unplaced.length?' (+'+palInfo.unplaced.length+' kutija nije stalo na palete)':'')+'</b>'+
+      '<span>Baza '+palInfo.base.L+'×'+palInfo.base.W+' cm · prosečna popunjenost visine palete '+avgFill.toFixed(0)+'% · kutije se zatim utovaruju kao palete.</span></div></div>';
+  }else pb.innerHTML='';
+
+  const totVol=bins.reduce((s,b)=>s+b.pieces.reduce((t,p)=>t+p.l*p.w*p.h,0),0);
+  const totWt=bins.reduce((s,b)=>s+b.weight,0);
+  const capVol=bins.length*veh.L*veh.W*veh.H, capWt=bins.length*veh.payload;
+  const floorUsed=bins.reduce((s,b)=>s+b.pieces.filter(p=>p.z<=0.01).reduce((t,p)=>t+p.l*p.w,0),0);
+  const capFloor=bins.length*veh.L*veh.W;
+  const volPct=capVol?totVol/capVol*100:0, wtPct=capWt?totWt/capWt*100:0, flPct=capFloor?floorUsed/capFloor*100:0;
+
+  document.getElementById('kpiVeh').textContent=bins.length+' ×';
+  document.getElementById('kpiVehL').textContent='Potrebno: '+veh.name;
+  setKpi('Vol',volPct);setKpi('Floor',flPct);setKpi('Wt',wtPct);
+
+  document.getElementById('vehTabs').innerHTML=bins.map((b,i)=>
+    '<div class="vehtab '+(i===0?'active':'')+'" onclick="selectBin('+i+')">Vozilo '+(i+1)+'</div>').join('')
+    ||'<span style="color:var(--muted)">Ništa nije utovareno.</span>';
+
+  let rows='<tr><th>#</th><th>Stavki</th><th>Zapremina</th><th>Vol %</th><th>Težina</th><th>Težina %</th><th>Status</th></tr>';
+  bins.forEach((b,i)=>{const bv=b.pieces.reduce((t,p)=>t+p.l*p.w*p.h,0);const vp=bv/(veh.L*veh.W*veh.H)*100,wp=b.weight/veh.payload*100;
+    const st=wp>98?'<span class="pill bad">težinski pun</span>':vp>85?'<span class="pill ok">odlično</span>':vp>55?'<span class="pill warn">delimično</span>':'<span class="pill">slabo</span>';
+    rows+='<tr><td>Vozilo '+(i+1)+'</td><td>'+b.pieces.length+'</td><td>'+(bv/1e6).toFixed(2)+' m³</td><td>'+vp.toFixed(0)+'%</td><td>'+Math.round(b.weight).toLocaleString('sr')+' kg</td><td>'+wp.toFixed(0)+'%</td><td>'+st+'</td></tr>';});
+  document.getElementById('sumTable').innerHTML=rows;
+
+  const ub=document.getElementById('unplacedBox');
+  if(RESULT.unplaced.length){const g={};RESULT.unplaced.forEach(p=>g[p.name]=(g[p.name]||0)+1);
+    ub.innerHTML='<div class="unplaced"><b style="color:var(--danger)">⚠ Nije stalo u vozila ('+RESULT.unplaced.length+'):</b><br>'+Object.entries(g).map(([n,c])=>'• '+n+' × '+c).join('<br>')+'</div>';}
+  else ub.innerHTML='';
+
+  document.getElementById('legend').innerHTML=itemRows.map((r,i)=>
+    '<span class="lg"><span class="sw" style="background:'+PALETTE[i%PALETTE.length]+'"></span>'+(r.name||('Stavka '+(i+1)))+'</span>').join('');
+
+  buildRecommendations({volPct,wtPct,flPct,bins,veh,totVol,totWt,palInfo});
+  activeBin=0; if(bins.length){draw2D(0);draw3D(0);}
+}
+function setKpi(k,p){document.getElementById('kpi'+k).textContent=p.toFixed(0)+'%';
+  const b=document.getElementById('bar'+k);b.className='bar'+(p>95?' bad':p>80?'':' warn');b.querySelector('i').style.width=Math.min(100,p)+'%';}
+function selectBin(i){activeBin=i;document.querySelectorAll('.vehtab').forEach((t,k)=>t.classList.toggle('active',k===i));draw2D(i);draw3D(i);}
+
+/* ===== RECOMMENDATIONS ENGINE (knowledge-based) ===== */
+function buildRecommendations(d){
+  const R=[];const add=(type,ic,title,txt)=>R.push({type,ic,title,txt});
+  const {volPct,wtPct,flPct,bins,veh,palInfo}=d;
+  // 1. vozilo/broj
+  if(!bins.length){add('bad','⛔','Ništa nije utovareno','Proveri dimenzije i da li stavke staju u izabrano vozilo.');}
+  else add('good','✅','Plan: '+bins.length+' × '+veh.name, bins.length>1?'Teret je raspoređen u '+bins.length+' vozila. Razmotri konsolidaciju ako je popunjenost niska.':'Sav teret staje u jedno vozilo.');
+  // strategija — poređenje
+  const stratName={grouped:'Grupisano (homogeno)',mixed:'Mešovito'};
+  if(STRATCOMP){
+    const g=STRATCOMP.grouped,m=STRATCOMP.mixed,ch=STRATCOMP.chosen;
+    const txt='Grupisano: '+g.bins+' voz. / popunjenost '+(g.fill*100).toFixed(0)+'%'+(g.unp?' (+'+g.unp+' viška)':'')+
+              '  ·  Mešovito: '+m.bins+' voz. / '+(m.fill*100).toFixed(0)+'%'+(m.unp?' (+'+m.unp+' viška)':'')+
+              '.  Izabrano: '+stratName[ch]+(ch==='grouped'?' — uz bolju/jednaku popunjenost lakše je za fizički utovar.':' — daje bolju popunjenost u ovom slučaju.');
+    add('tip','⚖️','Strategija: Auto je uporedio obe',txt);
+  } else if(RESULT.usedStrat){
+    add('tip','🧱','Strategija: '+stratName[RESULT.usedStrat], RESULT.usedStrat==='grouped'?'Roba je pakovana u homogene blokove po vrsti — lakše za rukovanje i istovar.':'Mešovito pakovanje radi maksimalne kombinatorike. Probaj „Auto" za poređenje sa grupisanim.');
+  }
+  // 2. ograničavajući faktor
+  if(wtPct>volPct+15) add('tip','⚖️','Težina je ograničavajući faktor','Vozilo se puni po težini pre nego po zapremini. Teške stavke stavi nisko i ravnomerno po dužini (osovinsko opterećenje); ostaje slobodnog prostora za laganu robu.');
+  else if(volPct>wtPct+15) add('tip','📐','Zapremina je ograničavajući faktor','Ima rezerve u nosivosti. Ako je roba slagljiva, viša pakovanja ili dodatni sloj podižu popunjenost.');
+  // 3. fill rate
+  if(volPct>=85) add('good','📈','Visoka popunjenost zapremine ('+volPct.toFixed(0)+'%)','Vrlo efikasan utovar — blizu praktičnog maksimuma.');
+  else if(volPct<60 && bins.length>=1) add('warn','📉','Niska popunjenost ('+volPct.toFixed(0)+'%)','Razmotri manje vozilo, grupisanje pošiljki ili omogući rotaciju/slaganje stavki gde je dozvoljeno.');
+  // 4. pod
+  if(flPct>97) add('tip','🧩','Pod je skoro pun','Iskoristi visinu — slaganje u više nivoa (ako roba dozvoljava) značajno povećava kapacitet.');
+  // 5. stackability
+  const nonStack=itemRows.some(r=>r.bear===false);
+  if(nonStack) add('tip','🔝','Imaš robu koja ne nosi teret','Na stavke bez „Vrh ✓" (npr. IBC, big bag) ne sme ništa odozgo — drže se otvorene gore. Grupiši ih uz zid da ne blokiraju slaganje ostalog.');
+  // 3D rotacija savet
+  const upgradable=itemRows.filter(r=>(r.orient||'upright')!=='free' && r.bear!==false);
+  if(volPct<78 && upgradable.length) add('tip','🔄','Probaj „slobodno 3D" za pogodnu robu','Za robu kojoj orijentacija nije bitna, promeni položaj na ◆ slobodno 3D — dozvoljava 6 orijentacija i obično podigne popunjenost za nekoliko procenata.');
+  // 6. težina balans
+  if(wtPct>90) add('warn','🚨','Visoko iskorišćenje nosivosti ('+wtPct.toFixed(0)+'%)','Pazi na osovinska opterećenja i raspored težine po dužini — koncentracija tereta napred/nazad može preći dozvoljene osovinske limite.');
+  // 7. palletization advice
+  if(palInfo){
+    const af=palInfo.palDetails.reduce((s,p)=>s+p.fill,0)/(palInfo.palDetails.length||1);
+    if(af<0.7) add('tip','🟫','Palete nisu pune po visini ('+(af*100).toFixed(0)+'%)','Povećaj maks. visinu palete ili kombinuj artikle da smanjiš broj paleta i bolje iskoristiš vozilo.');
+    if(palInfo.unplaced.length) add('warn','📦','Deo kutija nije stao na palete','Povećaj dozvoljenu visinu/težinu palete ili dodaj tip palete koji bolje odgovara dimenzijama.');
+  } else if(MODE==='loose'){
+    const hasPalletSized=itemRows.some(r=>dimToCm(r.L)>=100||dimToCm(r.W)>=100);
+    if(!hasPalletSized && itemRows.reduce((s,r)=>s+(+r.qty||0),0)>40)
+      add('tip','💡','Razmisli o paletizaciji','Velik broj manjih kutija — paletizacija ubrzava utovar/istovar i smanjuje rizik od oštećenja, uz malo gubitka prostora.');
+  }
+  // 8. general best practice
+  add('tip','📋','Pravilo struke','Teže i veće stavke utovaruj prve (pozadi/dole), gradi ravne slojeve, popunjavaj praznine manjim kutijama i fiksiraj teret da se ne pomera u transportu.');
+
+  document.getElementById('recos').innerHTML=R.map(r=>
+    '<div class="reco '+r.type+'"><div class="ic">'+r.ic+'</div><div><b>'+r.title+'</b><span>'+r.txt+'</span></div></div>').join('');
+}
+
+/* ===== 2D ===== */
+function draw2D(bi){const veh=RESULT.veh,bin=RESULT.bins[bi];const cv=document.getElementById('c2d'),ctx=cv.getContext('2d');
+  const pad=24,sc=Math.min((cv.width-pad*2)/veh.L,(cv.height-pad*2)/veh.W),ox=pad,oy=pad;
+  ctx.fillStyle='#0b121b';ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.strokeStyle='#3a4a5d';ctx.lineWidth=2;ctx.strokeRect(ox,oy,veh.L*sc,veh.W*sc);
+  ctx.fillStyle='#90a2b6';ctx.font='11px Segoe UI';ctx.fillText('zad ←',ox+2,oy-6);ctx.fillText('→ vrata',ox+veh.L*sc-46,oy-6);
+  bin.pieces.slice().sort((a,b)=>a.z-b.z).forEach(p=>{const col=PALETTE[(p.gi||0)%PALETTE.length];
+    const x=ox+p.x*sc,y=oy+p.y*sc,w=p.l*sc,h=p.w*sc,top=p.z>0.01;
+    ctx.fillStyle=col;ctx.globalAlpha=top?0.5:0.9;ctx.fillRect(x,y,w,h);
+    ctx.globalAlpha=1;ctx.strokeStyle='#0b121b';ctx.lineWidth=1;ctx.strokeRect(x,y,w,h);
+    if(top){ctx.strokeStyle='#fff';ctx.globalAlpha=.35;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+w,y+h);ctx.moveTo(x+w,y);ctx.lineTo(x,y+h);ctx.stroke();ctx.globalAlpha=1;}});
+  document.getElementById('lblTop').textContent=veh.L+'×'+veh.W+' cm';}
+
+/* ===== 3D ===== */
+function draw3D(bi){const veh=RESULT.veh,bin=RESULT.bins[bi],cont=document.getElementById('c3d');
+  const W=cont.clientWidth||600,H=cont.clientHeight||340;
+  if(!threeState){
+    const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(window.devicePixelRatio);
+    cont.innerHTML='';cont.appendChild(renderer.domElement);
+    const scene=new THREE.Scene();scene.background=new THREE.Color(0x0b121b);
+    const camera=new THREE.PerspectiveCamera(45,W/H,1,100000);
+    scene.add(new THREE.AmbientLight(0xffffff,0.75));const dl=new THREE.DirectionalLight(0xffffff,0.6);dl.position.set(1,2,1.5);scene.add(dl);
+    threeState={renderer,scene,camera,group:null,rot:{x:-0.5,y:-0.7},dist:1,drag:false,lx:0,ly:0};
+    const el=renderer.domElement;el.style.cursor='grab';
+    el.addEventListener('mousedown',e=>{threeState.drag=true;threeState.lx=e.clientX;threeState.ly=e.clientY;el.style.cursor='grabbing';});
+    window.addEventListener('mouseup',()=>{if(threeState){threeState.drag=false;threeState.renderer.domElement.style.cursor='grab';}});
+    window.addEventListener('mousemove',e=>{if(!threeState||!threeState.drag)return;
+      threeState.rot.y+=(e.clientX-threeState.lx)*0.008;threeState.rot.x+=(e.clientY-threeState.ly)*0.008;
+      threeState.rot.x=Math.max(-1.4,Math.min(1.4,threeState.rot.x));threeState.lx=e.clientX;threeState.ly=e.clientY;positionCam();});
+    el.addEventListener('wheel',e=>{e.preventDefault();threeState.dist*=(e.deltaY>0?1.1:0.9);threeState.dist=Math.max(0.4,Math.min(3,threeState.dist));positionCam();},{passive:false});
+    (function anim(){requestAnimationFrame(anim);threeState.renderer.render(threeState.scene,threeState.camera);})();
+  }
+  const {scene}=threeState;if(threeState.group)scene.remove(threeState.group);
+  const g=new THREE.Group();const cx=veh.L/2,cz=veh.W/2;
+  const box=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(veh.L,veh.H,veh.W)),new THREE.LineBasicMaterial({color:0x4a5d72}));
+  box.position.set(0,veh.H/2,0);g.add(box);
+  const fl=new THREE.Mesh(new THREE.PlaneGeometry(veh.L,veh.W),new THREE.MeshBasicMaterial({color:0x16212e,side:THREE.DoubleSide}));fl.rotation.x=-Math.PI/2;g.add(fl);
+  bin.pieces.forEach(p=>{const col=new THREE.Color(PALETTE[(p.gi||0)%PALETTE.length]);
+    const m=new THREE.Mesh(new THREE.BoxGeometry(p.l,p.h,p.w),new THREE.MeshLambertMaterial({color:col}));
+    m.position.set(p.x+p.l/2-cx,p.z+p.h/2,p.y+p.w/2-cz);g.add(m);
+    const e=new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry),new THREE.LineBasicMaterial({color:0x0b121b}));e.position.copy(m.position);g.add(e);});
+  scene.add(g);threeState.group=g;threeState.veh=veh;
+  threeState.renderer.setSize(W,H);threeState.camera.aspect=W/H;threeState.camera.updateProjectionMatrix();positionCam();}
+function positionCam(){if(!threeState||!threeState.veh)return;const v=threeState.veh,R=Math.max(v.L,v.W,v.H)*1.3*threeState.dist;const {x,y}=threeState.rot;
+  threeState.camera.position.set(Math.cos(x)*Math.sin(y)*R,Math.sin(x)*R+v.H*0.4,Math.cos(x)*Math.cos(y)*R);threeState.camera.lookAt(0,v.H*0.35,0);}
+
+/* ===== HELP & PARAMETRI ===== */
+function toggleHelp(){document.getElementById('helpwrap').classList.toggle('open');}
+function fillParams(){
+  document.getElementById('paramsBox').innerHTML=`
+  <details><summary>⚙️ Parametri optimizacije — po vozilu</summary>
+    <table>
+      <tr><td>Unutrašnje dimenzije (D×Š×V)</td><td>Stavka mora da stane unutar tovarnog prostora u sve tri ose; proverava se za svaku orijentaciju.</td></tr>
+      <tr><td>Nosivost (payload)</td><td>Zbir težina u jednom vozilu ne sme da pređe nosivost — kad se dostigne, otvara se novo vozilo.</td></tr>
+      <tr><td>Bez preklapanja</td><td>Nijedna dve stavke se ne smeju geometrijski seći (3D AABB provera).</td></tr>
+      <tr><td>Oslonac baze (min. %)</td><td>Stavka mora da ima dovoljno površine oslonjeno na pod ili na donje stavke (podrazumevano 60–70%) — sprečava „leteće" pakete.</td></tr>
+      <tr><td>Vrh / nosivost (✓)</td><td>Na stavku bez „Vrh ✓" ne sme da se postavi ništa odozgo (npr. IBC, big bag, lomljivo).</td></tr>
+      <tr><td>Položaj: uspravno + okret</td><td>Visina ostaje fiksna, dozvoljen okret 90° u horizontali (2 orijentacije). Za palete i robu „ovom stranom gore".</td></tr>
+      <tr><td>Položaj: uspravno fiksno</td><td>Bez ikakve rotacije, samo 1 orijentacija (npr. IBC, bubanj).</td></tr>
+      <tr><td>Položaj: slobodno 3D</td><td>Svih 6 orijentacija (sme na bok/teme) — najveća sloboda i najbolja popunjenost; bira se samo za robu kojoj orijentacija nije bitna.</td></tr>
+      <tr><td>Redosled pakovanja</td><td>Veće i teže stavke prve (sortiranje po zapremini pa visini); pozicija se bira najniže pa ka zadnjem zidu/levo (kompaktan, stabilan utovar).</td></tr>
+      <tr><td>Kriterijum optimalnosti</td><td>Minimum broja vozila, zatim maksimalna iskorišćenost zapremine. Mere se 3 pokazatelja: zapremina, površina poda i težina.</td></tr>
+      <tr><td>Strategija: grupisano</td><td>Ista vrsta robe se pakuje zajedno u homogene blokove (veće grupe prve). Često bolja iskorišćenost i znatno lakši fizički utovar/istovar.</td></tr>
+      <tr><td>Strategija: mešovito</td><td>Sva roba se sortira po zapremini i meša radi maksimalne kombinatorike (popunjavanje praznina raznorodnom robom).</td></tr>
+      <tr><td>Strategija: auto</td><td>Izračuna obe varijante i bira bolju (manje vozila → veća popunjenost); kod izjednačenja preferira grupisano jer je lakše za utovar.</td></tr>
+    </table>
+  </details>
+  <details><summary>🟫 Parametri optimizacije — po paleti (režim „Kutije → na palete")</summary>
+    <table>
+      <tr><td>Tip / baza palete</td><td>Footprint na koji se slažu kutije (EUR 120×80, EUR2 120×100, ili custom).</td></tr>
+      <tr><td>Maks. visina palete</td><td>Ukupna visina sa robom; korisna visina za slaganje = maks. visina − visina prazne palete.</td></tr>
+      <tr><td>Maks. težina palete</td><td>Kutije se dodaju dok zbir + tara palete ne dostigne limit; preko toga ide nova paleta.</td></tr>
+      <tr><td>Tara i visina prazne palete</td><td>Dodaju se svakoj paleti pre utovara u vozilo (realna visina i težina).</td></tr>
+      <tr><td>Slaganje kutija na paleti</td><td>Ista 3D heuristika kao za vozilo — rotacija, oslonac i pravilo slaganja po kutiji.</td></tr>
+      <tr><td>Slaganje paleta u 2 nivoa</td><td>Ako je uključeno, gotove palete se mogu složiti jedna na drugu u vozilu.</td></tr>
+      <tr><td>Rezultat</td><td>Broj formiranih paleta + popunjenost visine svake; svaka puna paleta zatim ulazi u optimizaciju vozila kao jedna celina.</td></tr>
+    </table>
+  </details>`;
+}
+
+/* ===== BOOT ===== */
+initPresets();updateUnitBadge();selMode('loose');fillParams();
+addItem({name:"Kartoni",L:60,W:40,H:40,kg:18,qty:80,stack:true,rot:true});
+window.addEventListener('resize',()=>{if(RESULT&&RESULT.bins.length&&STEP===4){draw2D(activeBin);draw3D(activeBin);}});
+</script>
+</body>
+</html>
