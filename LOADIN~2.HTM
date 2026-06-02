@@ -389,7 +389,8 @@
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
       <h2 style="margin:0">Rezultat optimizacije</h2>
       <div class="toolbar noprint">
-        <button class="btn-ghost btn-sm" onclick="window.print()">🖨️ Štampa / PDF</button>
+        <button class="btn-primary btn-sm" onclick="exportPDF()">📄 PDF izveštaj</button>
+        <button class="btn-ghost btn-sm" onclick="window.print()">🖨️ Štampa</button>
         <button class="btn-ghost btn-sm" onclick="goStep(1)">↺ Novi proračun</button>
       </div>
     </div>
@@ -455,6 +456,7 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <!-- ============================================================
      ANALITIKA (PostHog) — Faza 1
@@ -850,6 +852,95 @@ function buildRecommendations(d){
 
   document.getElementById('recos').innerHTML=R.map(r=>
     '<div class="reco '+r.type+'"><div class="ic">'+r.ic+'</div><div><b>'+r.title+'</b><span>'+r.txt+'</span></div></div>').join('');
+}
+
+/* ===== INSTRUKCIJE ZA PAKOVANJE ===== */
+function packingSteps(bin){
+  // grupiši po sloju visine (z), pa po vrsti robe; pozadi → napred
+  const layers={};
+  bin.pieces.forEach(p=>{const z=Math.round(p.z/5)*5;(layers[z]=layers[z]||[]).push(p);});
+  const zs=Object.keys(layers).map(Number).sort((a,b)=>a-b);
+  const steps=[];
+  zs.forEach(z=>{
+    const ps=layers[z].slice().sort((a,b)=>a.x-b.x||a.y-b.y);
+    const grp={};ps.forEach(p=>grp[p.name]=(grp[p.name]||0)+1);
+    const desc=Object.entries(grp).map(([n,c])=>c+'× '+n).join(', ');
+    steps.push((z<=1?'Osnovni red (na podu)':'Sloj na visini ~'+z+' cm')+': '+desc);
+  });
+  return steps;
+}
+
+/* ===== PDF IZVEŠTAJ ===== */
+function exportPDF(){
+  if(!window.jspdf||!RESULT||!RESULT.bins.length){alert('Prvo izračunaj utovar.');return;}
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({unit:'mm',format:'a4'});
+  const W=210,H=297,M=14;let y=0;
+  const veh=RESULT.veh,bins=RESULT.bins;
+  const line=(t,x,size,style,color)=>{doc.setFont('helvetica',style||'normal');doc.setFontSize(size||10);
+    doc.setTextColor(color?color[0]:30,color?color[1]:30,color?color[2]:30);doc.text(t,x,y);};
+  const ensure=h=>{if(y+h>H-14){doc.addPage();y=M;}};
+  // header traka
+  doc.setFillColor(15,23,32);doc.rect(0,0,W,26,'F');
+  doc.setTextColor(90,162,255);doc.setFont('helvetica','bold');doc.setFontSize(18);doc.text('askBitsy',M,15);
+  doc.setTextColor(159,180,201);doc.setFontSize(18);doc.text('.ai',M+30,15);
+  doc.setTextColor(200,212,226);doc.setFont('helvetica','normal');doc.setFontSize(11);doc.text('Plan utovara / Loading Plan',M,21);
+  const d=new Date();doc.setFontSize(9);doc.setTextColor(180,190,205);
+  doc.text(d.toLocaleDateString('sr-RS')+' '+d.toLocaleTimeString('sr-RS',{hour:'2-digit',minute:'2-digit'}),W-M,15,{align:'right'});
+  y=36;
+  // sažetak
+  const totVol=bins.reduce((s,b)=>s+b.pieces.reduce((t,p)=>t+p.l*p.w*p.h,0),0);
+  const totWt=bins.reduce((s,b)=>s+b.weight,0);
+  const capVol=bins.length*veh.L*veh.W*veh.H, capWt=bins.length*veh.payload;
+  const volPct=capVol?totVol/capVol*100:0, wtPct=capWt?totWt/capWt*100:0;
+  const stratName={grouped:'Grupisano (homogeno)',mixed:'Mešovito'};
+  line('SAŽETAK',M,12,'bold');y+=6;
+  line('Vozilo: '+veh.name+'   ('+veh.L+'×'+veh.W+'×'+veh.H+' cm, nosivost '+veh.payload.toLocaleString('sr')+' kg)',M,10);y+=5;
+  line('Potrebno vozila: '+bins.length+'      Strategija: '+(stratName[RESULT.usedStrat]||'—'),M,10);y+=5;
+  line('Iskorišćenost zapremine: '+volPct.toFixed(0)+'%      Iskorišćenost težine: '+wtPct.toFixed(0)+'%      Ukupna težina: '+Math.round(totWt).toLocaleString('sr')+' kg',M,10);y+=5;
+  if(PALRESULT){line('Paletizacija: '+PALRESULT.palDetails.length+' paleta (baza '+PALRESULT.base.L+'×'+PALRESULT.base.W+' cm)',M,10);y+=5;}
+  if(RESULT.unplaced.length){doc.setTextColor(200,60,60);line('PAŽNJA: '+RESULT.unplaced.length+' stavki nije stalo u vozila.',M,10,'bold');y+=5;}
+  y+=3;
+  // preporuke iz DOM-a
+  const recos=[...document.querySelectorAll('#recos .reco')].map(r=>({t:r.querySelector('b')?.textContent||'',s:r.querySelector('span')?.textContent||''}));
+  if(recos.length){
+    ensure(10);line('PREPORUKE',M,12,'bold');y+=6;
+    recos.forEach(r=>{
+      const txt=doc.splitTextToSize('• '+r.t+' — '+r.s,W-2*M);
+      ensure(txt.length*4.6+2);line('',M,9);doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(50,50,50);
+      doc.text(txt,M,y);y+=txt.length*4.6+2;
+    });
+    y+=2;
+  }
+  // po vozilu: 2D dijagram + instrukcije
+  bins.forEach((b,i)=>{
+    draw2D(i); // iscrtaj na canvas
+    const cv=document.getElementById('c2d');let img=null;try{img=cv.toDataURL('image/png');}catch(e){}
+    ensure(14);doc.setDrawColor(59,130,246);doc.setLineWidth(0.6);doc.line(M,y,W-M,y);y+=6;
+    const bv=b.pieces.reduce((t,p)=>t+p.l*p.w*p.h,0);
+    line('VOZILO '+(i+1)+' / '+bins.length,M,13,'bold',[29,99,230]);y+=6;
+    line('Stavki: '+b.pieces.length+'      Zapremina: '+(bv/1e6).toFixed(2)+' m³ ('+(bv/(veh.L*veh.W*veh.H)*100).toFixed(0)+'%)      Težina: '+Math.round(b.weight).toLocaleString('sr')+' kg ('+(b.weight/veh.payload*100).toFixed(0)+'%)',M,9);y+=6;
+    if(img){const iw=W-2*M, ih=iw*420/900; ensure(ih+4);doc.addImage(img,'PNG',M,y,iw,ih);y+=ih+5;}
+    // instrukcije
+    const steps=packingSteps(b);
+    ensure(8);line('Instrukcije za pakovanje (redosled utovara):',M,10,'bold');y+=5;
+    steps.forEach((st,idx)=>{
+      const txt=doc.splitTextToSize((idx+1)+'. '+st,W-2*M-4);
+      ensure(txt.length*4.6+1.5);doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(40,40,40);
+      doc.text(txt,M+2,y);y+=txt.length*4.6+1.5;
+    });
+    y+=4;
+  });
+  // napomena + footer na svim stranama
+  ensure(16);doc.setFont('helvetica','italic');doc.setFontSize(8);doc.setTextColor(120,130,145);
+  const note=doc.splitTextToSize('Napomena: heuristička optimizacija (Extreme-Point 3D packing) — vrlo dobra, ne nužno teorijski optimalna popunjenost. Dimenzije vozila su nominalne; proveriti tačne unutrašnje mere sa prevoznikom. Teže/veće stavke utovariti prve (pozadi-dole), graditi ravne slojeve, popunjavati praznine i fiksirati teret.',W-2*M);
+  doc.text(note,M,y);
+  const pages=doc.getNumberOfPages();
+  for(let p=1;p<=pages;p++){doc.setPage(p);doc.setFontSize(8);doc.setTextColor(150,160,175);
+    doc.text('askBitsy.ai — Loading Optimizer',M,H-8);doc.text('Str. '+p+'/'+pages,W-M,H-8,{align:'right'});}
+  doc.save('plan-utovara.pdf');
+  track('pdf_export',{vehicles:bins.length,mode:MODE,strategy:RESULT.usedStrat});
+  draw2D(activeBin); // vrati prikaz na aktivno vozilo
 }
 
 /* ===== 2D ===== */
